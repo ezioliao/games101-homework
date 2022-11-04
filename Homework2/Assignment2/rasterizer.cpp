@@ -40,10 +40,10 @@ auto to_vec4(const Eigen::Vector3f& v3, float w = 1.0f)
 }
 
 
-static bool insideTriangle(int x, int y, const Vector3f* _v)
+static bool insideTriangle(float x, float y, const Vector3f* _v)
 {   
     // TODO : Implement this function to check if the point (x, y) is inside the triangle represented by _v[0], _v[1], _v[2]
-    Vector3f P = {x+0.5, y+0.5, 1.0};
+    Vector3f P = {x, y, 1.0};
     const Vector3f &A = _v[0], &B = _v[1], &C = _v[2];
     auto AB = B-A, BC = C-B, CA = A-C;
     auto AP = P-A, BP = P-B, CP = P-C;
@@ -141,19 +141,49 @@ void rst::rasterizer::rasterize_triangle(const Triangle& t) {
     }
 
 
+    bool MSAA = true;
+    std::vector<Vector2f> MSAA_BIAS = {
+        {0.25, 0.25},
+        {0.75, 0.25},
+        {0.25, 0.75},
+        {0.75, 0.75}
+    };
     for (size_t x = left_bottom.x(); x < right_top.x(); x++)
     {
         for (size_t y = left_bottom.y(); y < right_top.y(); y++) {
-            if (insideTriangle(x, y, t.v)) {
-                auto[alpha, beta, gamma] = computeBarycentric2D(x, y, t.v);
-                float w_reciprocal = 1.0/(alpha / v[0].w() + beta / v[1].w() + gamma / v[2].w());
-                float z_interpolated = alpha * v[0].z() / v[0].w() + beta * v[1].z() / v[1].w() + gamma * v[2].z() / v[2].w();
-                z_interpolated *= w_reciprocal;
+            if (MSAA) {
+                int cnt = 0;
+                for (size_t i = 0; i < 4; i++)
+                {
+                    auto _x = x+MSAA_BIAS[i].x();
+                    auto _y = y+MSAA_BIAS[i].y();
+                    if (insideTriangle(_x, _y, t.v)) {
+                        cnt += 1;
+                    }
+                }
+                if (cnt > 0) {
+                    auto[alpha, beta, gamma] = computeBarycentric2D(x, y, t.v);
+                    float w_reciprocal = 1.0/(alpha / v[0].w() + beta / v[1].w() + gamma / v[2].w());
+                    float z_interpolated = alpha * v[0].z() / v[0].w() + beta * v[1].z() / v[1].w() + gamma * v[2].z() / v[2].w();
+                    z_interpolated *= w_reciprocal;
 
-                int buf_index = get_index(x,y);
-                if(z_interpolated >= depth_buf[buf_index]) continue;
-                depth_buf[buf_index] = z_interpolated;
-                set_pixel(Vector3f(x,y,1),t.getColor());
+                    int buf_index = get_index(x,y);
+                    if(z_interpolated >= depth_buf[buf_index]) continue;
+                    depth_buf[buf_index] = z_interpolated;
+                    set_pixel(Vector3f(x,y,1),t.getColor() / 4 * cnt);
+                }                  
+            } else {
+                if (insideTriangle(x + 0.5, y + 0.5, t.v)) {
+                    auto[alpha, beta, gamma] = computeBarycentric2D(x, y, t.v);
+                    float w_reciprocal = 1.0/(alpha / v[0].w() + beta / v[1].w() + gamma / v[2].w());
+                    float z_interpolated = alpha * v[0].z() / v[0].w() + beta * v[1].z() / v[1].w() + gamma * v[2].z() / v[2].w();
+                    z_interpolated *= w_reciprocal;
+
+                    int buf_index = get_index(x,y);
+                    if(z_interpolated >= depth_buf[buf_index]) continue;
+                    depth_buf[buf_index] = z_interpolated;
+                    set_pixel(Vector3f(x,y,1),t.getColor());
+                }
             }
         }
     }
