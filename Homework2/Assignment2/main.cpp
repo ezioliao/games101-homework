@@ -7,6 +7,10 @@
 
 constexpr double MY_PI = 3.1415926;
 
+inline double DEG2RAD(float rotation_angle) {
+    return rotation_angle / 180 * MY_PI;
+}
+
 Eigen::Matrix4f get_view_matrix(Eigen::Vector3f eye_pos)
 {
     Eigen::Matrix4f view = Eigen::Matrix4f::Identity();
@@ -32,6 +36,22 @@ Eigen::Matrix4f get_projection_matrix(float eye_fov, float aspect_ratio, float z
 {
     // TODO: Copy-paste your implementation from the previous assignment.
     Eigen::Matrix4f projection;
+    if (0)
+    {
+        double cotFov = 1/(tan(DEG2RAD(eye_fov/2)));
+        projection << cotFov/2*aspect_ratio, 0, 0, 0,
+                      0, cotFov/2, 0, 0,
+                      0, 0, (zNear + zFar) / (zNear - zFar), -(2*zNear*zFar) / (zNear - zFar),
+                      0, 0, 1, 0;
+    } else {
+        float top = -tan(DEG2RAD(eye_fov/2.0f)) * abs(zNear);
+        float right = top * aspect_ratio;
+
+        projection << zNear/right,0,0,0,
+                      0,zNear/top,0,0,
+                      0,0,(zNear+zFar)/(zNear-zFar),(2*zNear*zFar)/(zFar-zNear),
+                      0,0,1,0;
+    }
 
     return projection;
 }
