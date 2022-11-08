@@ -122,22 +122,10 @@ void rst::rasterizer::rasterize_triangle(const Triangle& t) {
     Vector2f right_top = {t.v[0].x(), t.v[0].y()};
     for (auto &&i : t.v)
     {
-        if (left_bottom.x() > i.x())
-        {
-            left_bottom.x() = i.x();
-        }
-        if (left_bottom.y() > i.y())
-        {
-            left_bottom.y() = i.y();
-        }
-        if (right_top.x() < i.x())
-        {
-            right_top.x() = i.x();
-        }
-        if (right_top.y() < i.y())
-        {
-            right_top.y() = i.y();
-        }
+        left_bottom.x() = std::min(left_bottom.x(), i.x());
+        left_bottom.y() = std::min(left_bottom.y(), i.y());
+        right_top.x() = std::max(right_top.x(), i.x());
+        right_top.y() = std::max(right_top.y(), i.y());
     }
 
 
